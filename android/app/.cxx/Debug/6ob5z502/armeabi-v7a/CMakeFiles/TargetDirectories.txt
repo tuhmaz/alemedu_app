@@ -1,0 +1,2 @@
+I:/alemedu_app/android/app/.cxx/Debug/6ob5z502/armeabi-v7a/CMakeFiles/edit_cache.dir
+I:/alemedu_app/android/app/.cxx/Debug/6ob5z502/armeabi-v7a/CMakeFiles/rebuild_cache.dir

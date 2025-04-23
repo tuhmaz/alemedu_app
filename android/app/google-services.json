@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "629802140732",
+    "project_id": "alemedu-app",
+    "storage_bucket": "alemedu-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:629802140732:android:ae6f2633248e46988cef39",
+        "android_client_info": {
+          "package_name": "com.alem.edu"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "629802140732-i7qqvqh1nb4ahl4o6ks2nuvbvj6e8vs5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alem.edu",
+            "certificate_hash": "bdbbc699475de1f863e1b620a49c0c7073caeca0"
+          }
+        },
+        {
+          "client_id": "629802140732-88u1jmeimeupvcgenavvte66gc1g640t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnK5YBi-bys6yi42C5LbabJAV_5cvIAZ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "629802140732-27a6f8bel525n2vdj6o375o5s1s9rrrk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
