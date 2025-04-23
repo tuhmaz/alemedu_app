@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:collection';
 import '../../../core/services/api_service.dart';
 import '../../../core/models/news_model.dart';
 import '../services/news_comment_service.dart';
@@ -12,10 +14,28 @@ class NewsProvider with ChangeNotifier {
   String _error = '';
   String _selectedDatabase = '';
   String? _selectedCategory;
+  Map<String, IconData> _categoryIcons = {};
+  Map<String, Color> _categoryColors = {};
+  List<String>? _cachedUniqueCategories;
+  Map<String, List<NewsModel>> _cachedGroupedNews = {};
+  Map<String, int> _newsCountCache = {};
 
-  NewsProvider(this._apiService, this._commentService);
+  NewsProvider(this._apiService, this._commentService) {
+    _initializeCategoryData();
+  }
+  
+  void _initializeCategoryData() {
+    _categoryIcons = {
+      'أكاديمي': Icons.school, 'رياضي': Icons.sports_soccer, 'ثقافي': Icons.theater_comedy, 'فني': Icons.palette, 'اجتماعي': Icons.people, 'تقني': Icons.computer, 'علمي': Icons.science, 'ديني': Icons.mosque,
+    };
+    _categoryColors = {
+      'أكاديمي': Color(0xFF1565C0), 'رياضي': Color(0xFF2E7D32), 'ثقافي': Color(0xFF6A1B9A), 'فني': Color(0xFFE65100), 'اجتماعي': Color(0xFF00838F), 'تقني': Color(0xFF283593), 'علمي': Color(0xFF00695C), 'ديني': Color(0xFF4E342E),
+    };
+  }
 
-  List<NewsModel> get news => _news;
+  List<NewsModel> get news => UnmodifiableListView(_news);
+  
+  
   List<CategoryModel> get categories => _categories;
   bool get isLoading => _isLoading;
   String get error => _error;
@@ -24,13 +44,16 @@ class NewsProvider with ChangeNotifier {
   NewsCommentService get commentService => _commentService;
 
   // الحصول على قائمة الفئات الفريدة
-  List<String> get uniqueCategories {
-    final Set<String> uniqueCategories = {};
-    for (var news in _news) {
-      if (news.category?.name != null) {
-        uniqueCategories.add(news.category!.name);
-      }
+    List<String> get uniqueCategories {
+    if (_cachedUniqueCategories != null) {
+      return _cachedUniqueCategories!;
     }
+    Set<String> uniqueCategories = {};
+      for (var news in _news) {
+        if (news.category?.name != null) {
+          uniqueCategories.add(news.category!.name);
+        }
+      }
     return ['الكل', ...uniqueCategories.toList()];
   }
 
@@ -46,7 +69,9 @@ class NewsProvider with ChangeNotifier {
       _commentService.updateSelectedDatabase(database);
       
       notifyListeners();
-      
+       _cachedUniqueCategories = null;
+      _cachedGroupedNews.clear();
+      _newsCountCache.clear();
       // جلب الأخبار الجديدة
       await fetchNews(refresh: true);
     }
@@ -60,11 +85,17 @@ class NewsProvider with ChangeNotifier {
 
   // الحصول على الأخبار المصنفة حسب الفئة المحددة
   List<NewsModel> getGroupedNews() {
-    if (_selectedCategory == null) {
-      return _news;
-    }
-    return _news.where((news) => news.category?.name == _selectedCategory).toList();
+  if (_selectedCategory == null) {
+    return UnmodifiableListView(_news);
   }
+  if (_cachedGroupedNews.containsKey(_selectedCategory)) {
+    return UnmodifiableListView(_cachedGroupedNews[_selectedCategory]!);
+  }
+  List<NewsModel> groupedNews = _news.where((news) => news.category?.name == _selectedCategory).toList();
+  _cachedGroupedNews[_selectedCategory!] = groupedNews;
+  return UnmodifiableListView(groupedNews);
+}
+
 
   // جلب الأخبار
   Future<void> fetchNews({bool refresh = false}) async {
@@ -73,7 +104,10 @@ class NewsProvider with ChangeNotifier {
     _isLoading = true;
     _error = '';
     if (refresh) {
+       _cachedUniqueCategories = null;
+      _cachedGroupedNews.clear();
       _news = [];
+      _newsCountCache.clear();
     }
     notifyListeners();
 
@@ -82,67 +116,58 @@ class NewsProvider with ChangeNotifier {
         _error = 'الرجاء اختيار قاعدة بيانات';
         _isLoading = false;
         notifyListeners();
-        return;
+                return;
       }
 
-      print('Fetching news for database: $_selectedDatabase');
       final response = await _apiService.get('/$_selectedDatabase/news');
-      print('API Response: $response');
       
       if (response != null && response['status'] == true) {
-        final List<dynamic> newsItems = response['data']['items'] as List<dynamic>;
-        print('Number of news items: ${newsItems.length}');
-        
-        _news = newsItems.map((item) {
-          print('Processing news item: ${item['title']}');
-          if (item['image'] != null) {
-            item['image'] = _transformImageUrl(item['image']);
-            print('Transformed image URL: ${item['image']}');
+           final List<dynamic> newsItems = response['data']['items'] as List<dynamic>;
+        if (newsItems.isNotEmpty) {
+          List<NewsModel> newNews = await compute(_processNewsItems, newsItems);
+           if (refresh) {
+            _news = newNews;
+          } else {
+            _news.addAll(newNews);
           }
-          
-          // Map content to description for compatibility
-          item['description'] = item['content'];
-          
-          return NewsModel.fromJson(item);
-        }).toList();
-        
-        print('Processed news items: ${_news.length}');
-        print('Sample image URLs:');
-        for (var news in _news.take(3)) {
-          print('- ${news.title}: ${news.image}');
+          _error = '';
+        } else {
+          _error = 'حدث خطأ في جلب الأخبار';
+           _news = [];
         }
-        
-        _error = '';
-      } else {
-        _error = 'حدث خطأ في جلب الأخبار';
-        _news = [];
-        print('Error: Empty response from API');
       }
     } catch (e) {
       _error = 'حدث خطأ في جلب الأخبار: $e';
       _news = [];
-      print('Error fetching news: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
-
+ static Future<List<NewsModel>> _processNewsItems(List<dynamic> newsItems) async {
+    return newsItems.map((item) {
+      if (item['image'] != null) {
+        item['image'] = _transformImageUrl(item['image']);
+      }
+      item['description'] = item['content'];
+      return NewsModel.fromJson(item);
+    }).toList();
+  }
   // تحديث الأخبار
   void refreshNews() {
     _selectedCategory = null;
     fetchNews(refresh: true);
   }
 
-  // Transform image URL
-  String _transformImageUrl(String? imageUrl) {
-    print('Transforming image URL: $imageUrl');
-    if (imageUrl == null || imageUrl.isEmpty) return '';
-    
-    // تنظيف الرابط من أي .webp في النهاية
-    String cleanUrl = imageUrl;
-    while (cleanUrl.toLowerCase().endsWith('.webp')) {
-      cleanUrl = cleanUrl.substring(0, cleanUrl.length - 5);
+  static String _transformImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+        return '';
+    }
+    String cleanUrl = imageUrl.replaceAll(RegExp(r'\.webp$', caseSensitive: false), '');
+
+    if (!cleanUrl.startsWith('http')) {
+        cleanUrl = cleanUrl.startsWith('/') ? cleanUrl.substring(1) : cleanUrl;
+        cleanUrl = 'https://alemedu.com/storage/$cleanUrl.webp';
     }
     
     // إضافة البروتوكول إذا لم يكن موجوداً
@@ -150,82 +175,27 @@ class NewsProvider with ChangeNotifier {
       cleanUrl = cleanUrl.startsWith('/')
           ? cleanUrl.substring(1)
           : cleanUrl;
-      cleanUrl = 'https://alemedu.com/storage/images/$cleanUrl.webp';
-    }
-    
-    print('Final image URL: $cleanUrl');
+    cleanUrl = 'https://alemedu.com/storage/$cleanUrl.webp';
+  }
     return cleanUrl;
   }
 
-  // الحصول على أيقونة مناسبة لكل فئة
   IconData getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'أكاديمي':
-      case 'academic':
-        return Icons.school;
-      case 'رياضي':
-      case 'sports':
-        return Icons.sports_soccer;
-      case 'ثقافي':
-      case 'cultural':
-        return Icons.theater_comedy;
-      case 'فني':
-      case 'art':
-        return Icons.palette;
-      case 'اجتماعي':
-      case 'social':
-        return Icons.people;
-      case 'تقني':
-      case 'technology':
-        return Icons.computer;
-      case 'علمي':
-      case 'science':
-        return Icons.science;
-      case 'ديني':
-      case 'religious':
-        return Icons.mosque;
-      default:
-        return Icons.article;
-    }
+    String normalizedCategory = category.toLowerCase();
+    String key = _categoryIcons.keys.firstWhere((k) => k.toLowerCase() == normalizedCategory, orElse: () => 'أخرى');
+    return _categoryIcons[key] ?? Icons.article;
   }
 
-  // الحصول على لون مناسب لكل فئة
   Color getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'أكاديمي':
-      case 'academic':
-        return Color(0xFF1565C0); // أزرق غامق
-      case 'رياضي':
-      case 'sports':
-        return Color(0xFF2E7D32); // أخضر غامق
-      case 'ثقافي':
-      case 'cultural':
-        return Color(0xFF6A1B9A); // بنفسجي
-      case 'فني':
-      case 'art':
-        return Color(0xFFE65100); // برتقالي غامق
-      case 'اجتماعي':
-      case 'social':
-        return Color(0xFF00838F); // تركواز غامق
-      case 'تقني':
-      case 'technology':
-        return Color(0xFF283593); // نيلي
-      case 'علمي':
-      case 'science':
-        return Color(0xFF00695C); // أخضر مزرق غامق
-      case 'ديني':
-      case 'religious':
-        return Color(0xFF4E342E); // بني
-      default:
-        return Color(0xFF546E7A); // رمادي مزرق
-    }
+    String normalizedCategory = category.toLowerCase();
+    String key = _categoryColors.keys.firstWhere((k) => k.toLowerCase() == normalizedCategory, orElse: () => 'أخرى');
+    return _categoryColors[key] ?? Color(0xFF546E7A);
   }
 
-  // الحصول على عدد الأخبار في كل فئة
-  int getNewsCountForCategory(String category) {
-    if (category == 'الكل') {
-      return _news.length;
+ int getNewsCountForCategory(String category) {
+    if (!_newsCountCache.containsKey(category)) {
+      _newsCountCache[category] = category == 'الكل' ? _news.length : _news.where((news) => news.category?.name == category).length;
     }
-    return _news.where((news) => news.category?.name == category).length;
+    return _newsCountCache[category]!;
   }
 }

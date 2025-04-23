@@ -1,0 +1,2 @@
+/home/user/alemedu_app/android/app/.cxx/Debug/6ym61585/x86_64/CMakeFiles/edit_cache.dir
+/home/user/alemedu_app/android/app/.cxx/Debug/6ym61585/x86_64/CMakeFiles/rebuild_cache.dir

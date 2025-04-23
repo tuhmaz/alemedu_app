@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "629802140732-i7qqvqh1nb4ahl4o6ks2nuvbvj6e8vs5.apps.googleusercontent.com",
+          "client_id": "629802140732-9cbpsfcvvlmpn87n8d8hlmgmcfhcnf05.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.alem.edu",
-            "certificate_hash": "bdbbc699475de1f863e1b620a49c0c7073caeca0"
+            "certificate_hash": "bdbd36197c4c69e7be26bd59ecb4d63834e0752b"
           }
         },
         {

@@ -78,15 +78,28 @@ class _CreateMessageScreenState extends State<CreateMessageScreen> {
     
     try {
       final messageProvider = context.read<MessageProvider>();
-      final allUsers = messageProvider.allUsers;
       
-      // Search locally in the already fetched users
+      // إذا لم يتم تحميل المستخدمين بعد، قم بتحميلهم أولاً
+      if (messageProvider.allUsers.isEmpty) {
+        print('🔍 لم يتم تحميل المستخدمين بعد. جاري التحميل...');
+        await messageProvider.fetchAllUsers();
+      }
+      
+      final allUsers = messageProvider.allUsers;
+      print('👥 عدد المستخدمين المتاحين للبحث: ${allUsers.length}');
+      
+      // البحث محلياً في المستخدمين الذين تم جلبهم بالفعل
       final results = allUsers.where((user) {
         final name = user['name']?.toString().toLowerCase() ?? '';
         final email = user['email']?.toString().toLowerCase() ?? '';
         final searchQuery = query.toLowerCase();
         return name.contains(searchQuery) || email.contains(searchQuery);
       }).toList();
+      
+      print('🔎 نتائج البحث عن "$query": ${results.length} مستخدم');
+      if (results.isNotEmpty) {
+        print('👤 النتائج الأولى: ${results.first['name']} (${results.first['email']})');
+      }
       
       if (mounted) {
         setState(() {
@@ -95,6 +108,7 @@ class _CreateMessageScreenState extends State<CreateMessageScreen> {
         });
       }
     } catch (e) {
+      print('❌ خطأ في البحث عن المستخدمين: $e');
       if (mounted) {
         setState(() {
           _searchResults = [];

@@ -14,6 +14,30 @@ import 'package:alemedu_app/features/messages/providers/message_provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/arab_countries.dart';
 
+// Utility function to fix malformed image URLs
+String fixImageUrl(String? url) {
+  if (url == null || url.isEmpty) {
+    return 'https://alemedu.com/assets/img/avatars/1.png';
+  }
+  
+  // Check if the URL is malformed (contains storage/https://)
+  if (url.contains('storage/https://')) {
+    // Extract the actual URL part after 'storage/'
+    final parts = url.split('storage/');
+    if (parts.length > 1) {
+      print('🔧 Fixed malformed URL: ${parts[1]}');
+      return parts[1]; // Return the actual URL part
+    }
+  }
+  
+  // Handle normal URLs
+  if (url.startsWith('http')) {
+    return url;
+  } else {
+    return 'https://alemedu.com${url}';
+  }
+}
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -340,9 +364,7 @@ class _ProfilePageState extends State<_ProfilePage> {
                     child: ClipOval(
                       child: Image(
                         image: CachedNetworkImageProvider(
-                          (profile.avatar?.startsWith('http') ?? false)
-                              ? profile.avatar ?? 'https://alemedu.com/assets/img/avatars/1.png'
-                              : 'https://alemedu.com${profile.avatar ?? '/assets/img/avatars/1.png'}',
+                          fixImageUrl(profile.avatar),
                           headers: const {
                             'Accept': 'image/*',
                           },

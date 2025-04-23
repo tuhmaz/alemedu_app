@@ -92,20 +92,36 @@ class MessageProvider extends ChangeNotifier {
     if (_isLoadingUsers) return; // Prevent multiple simultaneous calls
     
     try {
-
+      print('🔍 جاري جلب قائمة المستخدمين...');
       _isLoadingUsers = true;
       _error = null;
       notifyListeners();
 
       final response = await _apiService.get('/dashboard/users');
+      print('📥 استجابة قائمة المستخدمين: $response');
 
-
-      if (response != null && (response['data'] != null || response['users'] != null)) {
-        final users = response['data'] ?? response['users'];
-        _allUsers = List<Map<String, dynamic>>.from(users);
-
+      if (response != null) {
+        // تحقق من هيكل البيانات
+        if (response['data'] != null && response['data']['users'] != null) {
+          // هيكل البيانات: {status: true, message: null, data: {users: [...]}}  
+          print('✅ تم العثور على المستخدمين في response["data"]["users"]');
+          _allUsers = List<Map<String, dynamic>>.from(response['data']['users']);
+        } else if (response['users'] != null) {
+          // هيكل البيانات: {users: [...]}  
+          print('✅ تم العثور على المستخدمين في response["users"]');
+          _allUsers = List<Map<String, dynamic>>.from(response['users']);
+        } else if (response['data'] != null) {
+          // هيكل البيانات: {data: [...]}  
+          print('✅ تم العثور على المستخدمين في response["data"]');
+          _allUsers = List<Map<String, dynamic>>.from(response['data']);
+        } else {
+          print('⚠️ لم يتم العثور على بيانات المستخدمين في الاستجابة');
+          _allUsers = [];
+        }
+        
+        print('👥 عدد المستخدمين: ${_allUsers.length}');
       } else {
-
+        print('⚠️ استجابة فارغة من الخادم');
         _allUsers = [];
       }
     } catch (e) {
@@ -117,6 +133,7 @@ class MessageProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   Future<Map<String, dynamic>?> composeMessage() async {
     try {

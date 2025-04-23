@@ -61,12 +61,24 @@ class AuthProvider extends ChangeNotifier {
 
       // إرسال البيانات إلى الخادم
       print('📤 إرسال البيانات إلى الخادم على المسار: /login/google');
+      // معالجة URL الصورة الشخصية لتجنب مشكلة التخزين المزدوج
+      String? photoUrl = googleUser.photoUrl;
+      if (photoUrl != null && photoUrl.startsWith('https://')) {
+        // إرسال علامة خاصة للإشارة إلى أن هذا URL خارجي ولا يجب إضافة مسار التخزين إليه
+        photoUrl = "EXTERNAL_URL:" + photoUrl;
+        print('📷 تمت إضافة علامة للصورة الخارجية: $photoUrl');
+      }
+      
       final response = await _apiService.post('/login/google', {
         'id_token': googleAuth.idToken,
         'access_token': googleAuth.accessToken,
         'email': googleUser.email,
         'name': googleUser.displayName,
-        'photo': googleUser.photoUrl,
+        'photo': photoUrl,
+        'google_id': googleUser.id,  // إضافة معرف جوجل
+        'provider': 'google',        // تحديد المزود
+        'device_type': 'android',    // نوع الجهاز
+        'external_photo': true,      // علامة للإشارة إلى أن الصورة خارجية
       });
       print('📥 استجابة الخادم:');
       print(response);
@@ -125,40 +137,64 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> login(String email, String password) async {
+    print('🔑 بدء عملية تسجيل الدخول العادي');
+    print('📧 البريد الإلكتروني: $email');
+    print('🔒 كلمة المرور: ${password.replaceAll(RegExp(r'.'), '*')}');
 
     _isLoading = true;
     _clearError();
     notifyListeners();
 
     try {
-
+      print('🌐 إرسال طلب تسجيل الدخول إلى الخادم');
       final response = await _apiService.post('/login', {
         'email': email,
         'password': password,
       });
 
-
+      print('📥 استجابة الخادم: $response');
 
       if (response != null && 
           response['status'] == true && 
           response['data'] != null) {
+        print('✅ استجابة الخادم ناجحة، حالة: ${response['status']}');
         final data = response['data'];
         if (data['token'] != null && data['user'] != null) {
+          print('✅ تم العثور على التوكن وبيانات المستخدم');
+          print('🔑 التوكن: ${data['token'].substring(0, 20)}... (مختصر)');
+          print('👤 بيانات المستخدم: ${data['user']}');
 
           await _storage.write(key: 'token', value: data['token']);
+          print('💾 تم تخزين التوكن في التخزين الآمن');
+          
           _user = UserModel.fromJson(data['user']);
+          print('🔄 تم إنشاء كائن المستخدم: ${_user?.name}');
+          
           await setCurrentUser(_user!);
+          print('✅ تم حفظ بيانات المستخدم');
 
           notifyListeners();
+          print('🎉 تم تسجيل الدخول بنجاح!');
           return true;
+        } else {
+          print('⚠️ لم يتم العثور على التوكن أو بيانات المستخدم في الاستجابة');
+          print('📄 محتوى البيانات: $data');
         }
+      } else {
+        print('❌ فشل في استجابة الخادم');
+        print('📄 محتوى الاستجابة: $response');
       }
 
-
       _error = response?['message'] ?? 'خطأ في البريد الإلكتروني أو كلمة المرور';
+      print('❌ تم تعيين رسالة الخطأ: $_error');
       notifyListeners();
       return false;
-    } catch (e) {
+    } catch (e, stack) {
+      print('❌❌❌ حدث خطأ غير متوقع:');
+      print('🔴 نوع الخطأ: ${e.runtimeType}');
+      print('🔴 رسالة الخطأ: $e');
+      print('🔴 تتبع الخطأ:');
+      print(stack);
 
       _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
       notifyListeners();
@@ -166,6 +202,7 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+      print('🏁 اكتملت عملية تسجيل الدخول');
     }
   }
 
