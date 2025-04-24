@@ -34,7 +34,6 @@ class NewsCommentsProvider extends ChangeNotifier {
       _errorMap[newsId] = null;
     } catch (e) {
       _errorMap[newsId] = 'حدث خطأ في تحميل التعليقات';
-      print('Error loading comments for news $newsId: $e');
     } finally {
       _loadingMap[newsId] = false;
       notifyListeners();
@@ -54,7 +53,6 @@ class NewsCommentsProvider extends ChangeNotifier {
       _commentsMap[newsId]!.add(newComment);
       notifyListeners();
     } catch (e) {
-      print('Error adding comment to news $newsId: $e');
       rethrow;
     }
   }
@@ -108,7 +106,6 @@ class NewsCommentsProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error adding reaction to comment $commentId in news $newsId: $e');
       rethrow;
     }
   }

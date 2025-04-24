@@ -21,13 +21,10 @@ class ProfileProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('🔍 جاري جلب الملف الشخصي...');
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final userId = authProvider.user?.id;
-      print('👤 معرف المستخدم: $userId');
       
       if (userId == null) {
-        print('❌ معرف المستخدم غير موجود');
         throw ApiException(
           message: 'لم يتم العثور على معرف المستخدم',
           statusCode: 401,
@@ -35,12 +32,9 @@ class ProfileProvider extends ChangeNotifier {
       }
 
       final response = await _apiService.get('/dashboard/users/$userId');
-      print('📡 استجابة API: $response');
       
       if (response['status'] == true && response['data']?['user'] != null) {
-        print('✅ تم العثور على بيانات المستخدم');
         final userData = response['data']['user'];
-        print('🖼️ رابط الصورة الشخصية: ${userData['avatar']}');
         
         // تحقق من وجود الصورة الشخصية
         if (userData['avatar'] == null || userData['avatar'].toString().isEmpty) {
@@ -49,16 +43,12 @@ class ProfileProvider extends ChangeNotifier {
         }
         
         _profile = ProfileModel.fromJson(userData);
-        print('📝 بيانات الملف الشخصي: ${_profile?.toJson()}');
       } else {
-        print('⚠️ لا توجد بيانات للمستخدم');
         _error = 'لا توجد بيانات للمستخدم';
       }
     } on ApiException catch (e) {
-      print('🚫 خطأ في API: ${e.message}');
       _error = e.message;
     } catch (e) {
-      print('💥 خطأ غير متوقع: $e');
       _error = 'حدث خطأ غير متوقع';
     } finally {
       _isLoading = false;
@@ -82,7 +72,6 @@ class ProfileProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('🔄 جاري تحديث الملف الشخصي...');
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final userId = authProvider.user?.id;
       if (userId == null) {
@@ -92,8 +81,6 @@ class ProfileProvider extends ChangeNotifier {
         );
       }
 
-      print('📤 إرسال البيانات: userId=$userId');
-      
       // تأكد من إرسال البيانات الإلزامية
       if (_profile == null) {
         throw ApiException(
@@ -114,23 +101,18 @@ class ProfileProvider extends ChangeNotifier {
         'social_links': socialLinks ?? _profile!.socialLinks,
       };
 
-      print('📤 البيانات المرسلة: $data');
       
       final response = await _apiService.put('/dashboard/users/$userId', data);
-      print('📥 استجابة التحديث: $response');
 
       if (response['status'] == true && response['data']?['user'] != null) {
-        print('✅ تم تحديث الملف الشخصي بنجاح');
         _profile = ProfileModel.fromJson(response['data']['user']);
         notifyListeners();
         return true;
       }
 
-      print('❌ فشل تحديث الملف الشخصي');
       _error = response['message'] ?? 'فشل تحديث الملف الشخصي';
       return false;
     } on ApiException catch (e) {
-      print('🚫 خطأ في API: ${e.message}');
       _error = e.message;
       return false;
     } catch (e) {
@@ -145,7 +127,6 @@ class ProfileProvider extends ChangeNotifier {
 
   Future<bool> updateProfilePhoto(String newPhotoUrl) async {
     try {
-      print('🔄 جاري تحديث الصورة الشخصية...');
       if (_profile == null) {
         throw ApiException(
           message: 'لم يتم العثور على بيانات الملف الشخصي',
@@ -173,7 +154,6 @@ class ProfileProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('❌ خطأ في تحديث الصورة الشخصية: $e');
       return false;
     }
   }
@@ -182,15 +162,12 @@ class ProfileProvider extends ChangeNotifier {
     try {
       print('📏 التحقق من حجم الصورة');
       final fileSize = await photo.length();
-      print('📦 حجم الصورة: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} ميجابايت');
       
       if (fileSize > 5 * 1024 * 1024) {
-        print('⚠️ حجم الصورة كبير جداً');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('حجم الصورة كبير جداً. يجب أن يكون أقل من 5 ميجابايت'),
-              backgroundColor: Colors.red,
             ),
           );
         }
@@ -199,11 +176,9 @@ class ProfileProvider extends ChangeNotifier {
 
       print('🔑 جلب معرف المستخدم');
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final userId = authProvider.user?.id;
-      print('👤 معرف المستخدم: $userId');
+      final userId = authProvider.user?.id;      
       
       if (userId == null) {
-        print('❌ لم يتم العثور على معرف المستخدم');
         throw ApiException(
           message: 'لم يتم العثور على معرف المستخدم',
           statusCode: 401,
@@ -235,24 +210,19 @@ class ProfileProvider extends ChangeNotifier {
         photo,
         'profile_photo',
       );
-      print('📥 استجابة الخادم: $response');
-
-      print('❌ إزالة مؤشر التحميل');
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
       }
 
       if (response != null && response['status'] == true && response['data']?['user'] != null) {
-        print('✅ تحديث بيانات الملف الشخصي');
         final userData = response['data']['user'] as Map<String, dynamic>;
         final newPhotoUrl = userData['avatar'] as String?;
-        print('🖼️ URL الصورة الجديد: $newPhotoUrl');
         
         if (newPhotoUrl != null) {
           await updateProfilePhoto(newPhotoUrl);
           
           if (context.mounted) {
-            print('📢 عرض رسالة النجاح');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('تم تحديث الصورة الشخصية بنجاح'),
@@ -264,17 +234,11 @@ class ProfileProvider extends ChangeNotifier {
         }
       }
       
-      print('⚠️ البيانات المستلمة غير صحيحة: $response');
       throw ApiException(
         message: 'فشل في تحديث الصورة الشخصية',
         statusCode: 500,
       );
     } catch (e) {
-      if (e is ApiException) {
-        print('🚫 خطأ API: ${e.message} (الكود: ${e.statusCode})');
-      } else {
-        print('❌ خطأ غير متوقع: $e');
-      }
       _error = e.toString();
       notifyListeners();
       return false;

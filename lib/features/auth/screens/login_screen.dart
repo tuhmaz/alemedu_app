@@ -91,7 +91,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
       
       if (success) {
-        print('🏠 الانتقال إلى الشاشة الرئيسية');
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
       } else {

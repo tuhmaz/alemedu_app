@@ -32,7 +32,6 @@ class ProfileModel {
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
-    print(' Converting JSON to ProfileModel: $json');
     try {
       return ProfileModel(
         id: json['id'] as int? ?? 0,
@@ -51,7 +50,6 @@ class ProfileModel {
         updatedAt: json['updated_at']?.toString(),
       );
     } catch (e) {
-      print(' Error converting JSON to ProfileModel: $e');
       rethrow;
     }
   }

@@ -63,19 +63,13 @@ class SubjectsProvider with ChangeNotifier {
           _error = '';
         }
       } else {
-        print('لم يتم العثور على مواد في الاستجابة');
         _error = 'لا توجد مواد دراسية متاحة لهذا الصف';
       }
     } catch (e, stackTrace) {
-      print('حدث خطأ: $e');
-      print('تتبع الخطأ: $stackTrace');
       _error = 'حدث خطأ في الاتصال: $e';
     }
 
     _isLoading = false;
-    print('=== نهاية جلب المواد الدراسية ===');
-    print('المواد النهائية: $_subjects');
-    print('حالة الخطأ النهائية: $_error');
     notifyListeners();
   }
 }

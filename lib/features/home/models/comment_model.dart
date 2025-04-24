@@ -46,8 +46,6 @@ class CommentModel {
         database: json['database']?.toString() ?? '',
       );
     } catch (e) {
-      print('خطأ في تحويل التعليق: $e');
-      print('JSON الخاطئ: $json');
       rethrow;
     }
   }

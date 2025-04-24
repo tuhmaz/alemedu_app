@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,23 +24,44 @@ class UnauthorizedException implements Exception {
 }
 
 class ApiService {
+  // Make ApiService singleton
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
+
+  // Constants.
   static const String baseUrl = 'https://alemedu.com/api';
-  final storage = const FlutterSecureStorage();
   static const String _apiKeyStorageKey = 'api_key';
   static const String _validApiKey = 'gfOTaGfOcVZigVyN3Go5ZHwr606mmzlPs6gfet0Nsd6d5wBykGGsI9rf1zZ0UYsZ';
+  // Private fields.
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  //get storage instance.
+  FlutterSecureStorage get storage => _storage;
+
+  String? _token; // Store the current token
+
+  // Methods to manage the token
+  void addTokenToHeaders(String token) {
+    _token = token;
+  }
+
+  void removeTokenFromHeaders() {
+    _token = null;
+  }
 
   // تهيئة ApiService والتحقق من وجود API Key
-  Future<void> initialize() async {
-    final storedApiKey = await storage.read(key: _apiKeyStorageKey);
-    if (storedApiKey == null) {
-      // تخزين API Key بشكل آمن عند أول استخدام
-      await storage.write(key: _apiKeyStorageKey, value: _validApiKey);
+  // This function is called only once at app start
+
+  Future<void> initialize() async {    
+    final storedApiKey = await _storage.read(key: _apiKeyStorageKey);
+    if (storedApiKey == null || storedApiKey.isEmpty) {
+      await _storage.write(key: _apiKeyStorageKey, value: _validApiKey);
     }
   }
 
-  Future<String?> getToken() async {
-    return await storage.read(key: 'token');
-  }
+    Future<String?> getToken() async {
+      return _token ?? await _storage.read(key: 'token');
+    }
 
   // التحقق من صلاحية API Key
   Future<bool> validateApiKey(String apiKey) async {
@@ -52,44 +72,39 @@ class ApiService {
     try {
       // The correct API key provided by the server
       const correctApiKey = 'gfOTaGfOcVZigVyN3Go5ZHwr606mmzlPs6gfet0Nsd6d5wBykGGsI9rf1zZ0UYsZ';
-      
+
       // Try to get API key from both secure storage and shared preferences
-      final apiKey = await storage.read(key: _apiKeyStorageKey);
+      final apiKey = await _storage.read(key: _apiKeyStorageKey);
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Check if API key exists in shared preferences
       if (prefs.containsKey('apiKey')) {
         final prefsApiKey = prefs.getString('apiKey');
-        print('🔑 Found API key in shared preferences: ${prefsApiKey?.substring(0, min(prefsApiKey?.length ?? 0, 5))}...');
-        
-        // If the key in shared preferences is valid, use it
+        // If the key in shared preferences is valid , store it in secure storage for consistency, and use it
         if (prefsApiKey != null && prefsApiKey.isNotEmpty) {
           // Also store it in secure storage for consistency
-          await storage.write(key: _apiKeyStorageKey, value: prefsApiKey);
+          await _storage.write(key: _apiKeyStorageKey, value: prefsApiKey);
           return prefsApiKey;
         }
       }
       
-      // If API key is found in secure storage
-      if (apiKey != null) {
-        print('🔑 Found API key in secure storage: ${apiKey.substring(0, min(apiKey.length, 5))}...');
-        
+      // If API key is found in secure storage, store it in shared preferences too, and use it.
+      if (apiKey != null) {        
         // Store it in shared preferences too
         await prefs.setString('apiKey', apiKey);
-        return apiKey;
+        return apiKey;    
       } else {
         print('⚠️ API Key not found in storage, storing the correct key');
-        
+
         // Store the correct key in both storages for future use
-        await storage.write(key: _apiKeyStorageKey, value: correctApiKey);
+        await _storage.write(key: _apiKeyStorageKey, value: correctApiKey);
         await prefs.setString('apiKey', correctApiKey);
         
         return correctApiKey;
       }
     } catch (e) {
       print('⚠️ Error getting API key: $e');
-      
-      // Fallback to the correct API key in case of any errors
+      // Fallback to the correct API key in case of any errors.
       const correctApiKey = 'gfOTaGfOcVZigVyN3Go5ZHwr606mmzlPs6gfet0Nsd6d5wBykGGsI9rf1zZ0UYsZ';
       
       // Try to store it in shared preferences as a last resort
@@ -104,23 +119,17 @@ class ApiService {
     }
   }
 
-  Future<Map<String, String>> getHeaders({bool isMultipart = false}) async {
+  Future<Map<String, String>> getHeaders({bool isMultipart = false}) async {    
     try {
-      final token = await getToken();
-      final apiKey = await getApiKey();  // سيقوم بالتحقق من الصلاحية تلقائياً
-      
-      print('💬 إنشاء الهيدرز للطلب');
-      print('🔑 API Key: ${apiKey.substring(0, min(apiKey.length, 5))}...');
-      if (token != null) {
-        print('🔒 Token: ${token.substring(0, min(token.length, 5))}...');
-      }
-      
-      final headers = {
-        if (!isMultipart) 'Content-Type': 'application/json',
+      final String apiKey = await getApiKey(); // Check if the api key is valid or not.
+      final Map<String, String> headers = {
+        if (!isMultipart) 'Content-Type': 'application/json', // Add content type if it is not multipart.
         'Accept': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
         'X-API-KEY': apiKey,
       };
+      if(_token != null){
+        headers['Authorization'] = 'Bearer $_token';
+      }
       return headers;
     } catch (e) {
       if (e is UnauthorizedException) {
@@ -136,43 +145,29 @@ class ApiService {
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     try {
-      print('🌐 POST request to: $baseUrl$endpoint');
-      print('📤 Request data: $data');
-      
       final headers = await getHeaders();
-      print('📤 Request headers: $headers');
       
       final response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
         body: json.encode(data),
       );
-      
+
       print('📥 Response status code: ${response.statusCode}');
       print('📥 Response body: ${response.body}');
-      
-      // خاص بتسجيل الدخول: إذا كان الخطأ 401 وكان الطلب هو تسجيل الدخول، فلا نعتبره انتهاء صلاحية الجلسة
-      // بل نعتبره خطأ في بيانات تسجيل الدخول
+
+      // Handle UnauthorizedException (401) for login endpoints
       if (response.statusCode == 401) {
-        print('🔒 Unauthorized: 401 error');
-        
-        // محاولة تحليل رسالة الخطأ من الاستجابة
         try {
-          final responseData = json.decode(response.body);
-          if (endpoint == '/login' || endpoint == '/login/google') {
-            print('💬 خطأ في تسجيل الدخول: ${responseData['message']}');
-            // إرجاع البيانات بدلاً من رمي استثناء لتسجيل الدخول
-            return responseData;
+          final responseData = json.decode(response.body);          
+          if (endpoint == '/login' || endpoint == '/login/google') { // Check if it's a login request
+            return responseData; // Return error message
           } else {
-            throw UnauthorizedException(responseData['message'] ?? 'انتهت صلاحية الجلسة');
+            throw UnauthorizedException(responseData['message'] ?? 'انتهت صلاحية الجلسة'); // Throw UnauthorizedException for other endpoints
           }
-        } catch (e) {
-          // إذا فشل تحليل الاستجابة، نستخدم الرسالة الافتراضية
-          if (endpoint == '/login' || endpoint == '/login/google') {
-            return {
-              'status': false,
-              'message': 'خطأ في البريد الإلكتروني أو كلمة المرور'
-            };
+        } catch (e) { // If failed to parse the body
+          if (endpoint == '/login' || endpoint == '/login/google') { // Check if it's a login request
+            return {'status': false,'message': 'خطأ في البريد الإلكتروني أو كلمة المرور'}; // Return default error message for login
           } else {
             throw UnauthorizedException('انتهت صلاحية الجلسة');
           }
@@ -180,15 +175,12 @@ class ApiService {
       }
       
       final responseData = json.decode(response.body);
-      print('📥 Parsed response data: $responseData');
       
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Request successful with status: ${response.statusCode}');
+      if (response.statusCode == 200 || response.statusCode == 201) { // Success
         return responseData;
       } else {
-        print('❌ Error response: $responseData');
-        throw ApiException(
-          message: responseData['message'] ?? 'حدث خطأ في العملية',
+        throw ApiException( // Error
+          message: responseData['message'] ?? 'حدث خطأ في العملية', 
           statusCode: response.statusCode,
         );
       }
@@ -199,22 +191,20 @@ class ApiService {
       throw ApiException(
         message: 'حدث خطأ في الاتصال بالخادم',
         statusCode: 500,
-      );
+      );      
     }
   }
 
   Future<dynamic> get(String endpoint, {Map<String, dynamic>? queryParameters}) async {
     try {
-      print('🌐 Making GET request to: $baseUrl$endpoint');
+
       final headers = await getHeaders();
-      print('📤 Request headers: $headers');
       
       var uri = Uri.parse('$baseUrl$endpoint');
       if (queryParameters != null) {
         uri = uri.replace(queryParameters: queryParameters.map((key, value) => MapEntry(key, value.toString())));
       }
-      print('🔗 Full URL: $uri');
-      
+
       final response = await http.get(
         uri,
         headers: headers,
@@ -225,19 +215,16 @@ class ApiService {
       if (response.statusCode == 200) {
         try {
           final responseData = json.decode(response.body);
-          print('📥 Parsed response data: $responseData');
           return responseData;
         } catch (e) {
-          print('💥 JSON parse error: $e');
-          print('📥 Raw response body: ${response.body}');
-          throw ApiException(
-            message: 'خطأ في تنسيق البيانات من الخادم',
+          throw ApiException(            
+            message: 'خطأ في تنسيق البيانات من الخادم',            
             statusCode: response.statusCode,
           );
         }
       } else {
         print('❌ Error response: ${response.body}');
-        try {
+        try { // Try to parse error message
           final errorData = json.decode(response.body);
           throw ApiException(
             message: errorData['message'] ?? 'حدث خطأ في العملية',
@@ -271,7 +258,7 @@ class ApiService {
         body: json.encode(data),
       );
       
-      final responseData = json.decode(response.body);
+      final responseData = json.decode(response.body); // Parse response body.
       
       if (response.statusCode == 200) {
         return responseData;
@@ -294,25 +281,21 @@ class ApiService {
 
   Future<dynamic> patch(String endpoint, Map<String, dynamic> data) async {
     try {
-      print('🔄 PATCH request to: $baseUrl$endpoint');
       final headers = await getHeaders();
-      print('📤 Request headers: $headers');
-      
       final response = await http.patch(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
-        body: json.encode(data),
+        body: json.encode(data),        
       );
       
-      print('📥 Response status code: ${response.statusCode}');
+      print('📥 Response status code: ${response.statusCode}'); 
       print('📥 Response body: ${response.body}');
       
-      final responseData = json.decode(response.body);
+      final responseData = json.decode(response.body); // Parse response body.
       
       if (response.statusCode == 200) {
         return responseData;
       } else {
-        print('❌ Error response: $responseData');
         throw ApiException(
           message: responseData['message'] ?? 'حدث خطأ في العملية',
           statusCode: response.statusCode,
@@ -332,37 +315,28 @@ class ApiService {
 
   Future<dynamic> uploadFile(String endpoint, File file, String fieldName) async {
     try {
-      print('🔑 جلب الهيدرز');
       final headers = await getHeaders(isMultipart: true);
-      print('📤 الهيدرز: $headers');
+      final uri = Uri.parse('$baseUrl$endpoint');      
 
-      print('🌐 إنشاء طلب الرفع');
-      final uri = Uri.parse('$baseUrl$endpoint');
-      print('🔗 الرابط الكامل: $uri');
-      
+      // Create and configure multipart request
       final request = http.MultipartRequest('POST', uri)
         ..headers.addAll(headers)
         ..files.add(await http.MultipartFile.fromPath(
-          fieldName,
-          file.path,
+          fieldName,          file.path,
         ));
       
-      print('🚀 إرسال الطلب');
       final streamedResponse = await request.send();
-      print('📥 استلام الاستجابة');
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await http.Response.fromStream(streamedResponse); // Get response.
+
       print('📊 كود الاستجابة: ${response.statusCode}');
       print('📄 محتوى الاستجابة: ${response.body}');
       
-      final responseData = json.decode(response.body);
+      final responseData = json.decode(response.body); // Parse response body.
       
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ تم رفع الملف بنجاح');
         return responseData;
       } else {
-        print('❌ فشل رفع الملف');
-        print('⚠️ رسالة الخطأ: ${responseData['message']}');
-        throw ApiException(
+        throw ApiException(          
           message: responseData['message'] ?? 'حدث خطأ غير متوقع',
           statusCode: response.statusCode,
         );
@@ -375,18 +349,17 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>?> delete(String endpoint) async {
-    print('🗑️ DELETE طلب: $endpoint');
     try {
       final headers = await getHeaders();
-      print('🔑 الهيدرز: $headers');
-      
+
       final response = await http.delete(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
       );
+
       print('📥 استجابة الخادم: ${response.statusCode}');
       print('📄 محتوى الاستجابة: ${response.body}');
-
+      
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else if (response.statusCode == 401) {
@@ -403,7 +376,7 @@ class ApiService {
       rethrow;
     }
   }
-
+  //get the stored user data from local storage.
   Future<Map<String, dynamic>> getCurrentUserData() async {
     final userData = await storage.read(key: 'user_data');
     if (userData != null) {

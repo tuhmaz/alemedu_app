@@ -19,7 +19,6 @@ class ArticlesProvider with ChangeNotifier {
   Map<String, dynamic>? get selectedSubject => _selectedSubject;
 
   void updateSelectedDatabase(String database) {
-    print('تحديث قاعدة البيانات المحددة من $_selectedDatabase إلى $database');
     if (_selectedDatabase != database) {
       _selectedDatabase = database;
       _articles = []; // إعادة تعيين المقالات عند تغيير قاعدة البيانات
@@ -41,33 +40,24 @@ class ArticlesProvider with ChangeNotifier {
   }) async {
     if (_isLoading) return;
 
-    print('=== بدء جلب المقالات ===');
-    print('قاعدة البيانات المحددة: $_selectedDatabase');
-    print('Subject ID: $subjectId, Semester ID: $semesterId, Category: $category');
-    
     _isLoading = true;
     _error = null;
     Future.microtask(() => notifyListeners());
 
     try {
       final url = '/$_selectedDatabase/lesson/subjects/$subjectId/articles/$semesterId/$category';
-      print('Requesting URL: $url');
       
       final response = await _apiService.get(url);
-      print('API Response: $response');
 
       if (response != null && 
           response['status'] == true && 
           response['data'] != null &&
           response['data']['status'] == true &&
           response['data']['articles'] != null) {
-        print('Found articles in response');
         final List<dynamic> articlesData = response['data']['articles'];
-        print('Articles data count: ${articlesData.length}');
         
         _articles = articlesData.map((json) {
           final article = ArticleModel.fromJson(json);
-          print('Processed article: $article');
           return article;
         }).toList();
         
@@ -76,23 +66,16 @@ class ArticlesProvider with ChangeNotifier {
         } else {
           _error = null;
         }
-        print('Total processed articles: ${_articles.length}');
       } else {
-        print('No articles found in response');
         _articles = [];
         _error = 'لا توجد مقالات متاحة';
       }
     } catch (e, stackTrace) {
-      print('Error occurred: $e');
-      print('Stack trace: $stackTrace');
       _error = 'حدث خطأ: $e';
       _articles = [];
     }
 
     _isLoading = false;
-    print('Final articles count: ${_articles.length}');
-    print('Final error state: $_error');
-    print('=== نهاية جلب المقالات ===');
     Future.microtask(() => notifyListeners());
   }
 
@@ -107,25 +90,20 @@ class ArticlesProvider with ChangeNotifier {
 
     try {
       final url = '/$_selectedDatabase/lesson/articles/$articleId';
-      print('Requesting article details URL: $url');
       final response = await _apiService.get(url);
-      print('Article details response: $response');
 
       if (response != null && 
           response['status'] == true && 
           response['data'] != null &&
           response['data']['status'] == true &&
           response['data']['item'] != null) {
-        _selectedArticle = ArticleModel.fromJson(response['data']['item']);
+          _selectedArticle = ArticleModel.fromJson(response['data']['item']);
         _error = null;
-        print('Successfully loaded article: ${_selectedArticle?.title}');
       } else {
-        print('Invalid article details response structure');
         _selectedArticle = null;
         _error = 'لا يمكن تحميل تفاصيل المقالة';
       }
     } catch (e) {
-      print('Error fetching article details: $e');
       _selectedArticle = null;
       _error = 'حدث خطأ أثناء تحميل تفاصيل المقالة';
     }

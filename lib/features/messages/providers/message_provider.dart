@@ -30,11 +30,9 @@ class MessageProvider extends ChangeNotifier {
       _isLoading = true;
       _error = null;
       notifyListeners();
-      print('🔄 جاري الاتصال بالخادم...');
 
       final response = await _apiService.get('/dashboard/messages');
-      print('📥 استجابة الخادم: $response');
-
+     
       if (response != null && response['messages'] != null) {
 
         _messages = (response['messages'] as List)
@@ -61,11 +59,9 @@ class MessageProvider extends ChangeNotifier {
       _isLoading = true;
       _error = null;
       notifyListeners();
-      print('🔄 جاري الاتصال بالخادم...');
 
       final response = await _apiService.get('/dashboard/messages/sent');
-      print('📥 استجابة الخادم: $response');
-
+     
       if (response != null && response['sent_messages'] != null) {
 
         _sentMessages = (response['sent_messages'] as List)
@@ -92,36 +88,29 @@ class MessageProvider extends ChangeNotifier {
     if (_isLoadingUsers) return; // Prevent multiple simultaneous calls
     
     try {
-      print('🔍 جاري جلب قائمة المستخدمين...');
       _isLoadingUsers = true;
       _error = null;
       notifyListeners();
 
       final response = await _apiService.get('/dashboard/users');
-      print('📥 استجابة قائمة المستخدمين: $response');
-
+     
       if (response != null) {
         // تحقق من هيكل البيانات
         if (response['data'] != null && response['data']['users'] != null) {
           // هيكل البيانات: {status: true, message: null, data: {users: [...]}}  
-          print('✅ تم العثور على المستخدمين في response["data"]["users"]');
           _allUsers = List<Map<String, dynamic>>.from(response['data']['users']);
         } else if (response['users'] != null) {
           // هيكل البيانات: {users: [...]}  
-          print('✅ تم العثور على المستخدمين في response["users"]');
           _allUsers = List<Map<String, dynamic>>.from(response['users']);
         } else if (response['data'] != null) {
           // هيكل البيانات: {data: [...]}  
-          print('✅ تم العثور على المستخدمين في response["data"]');
           _allUsers = List<Map<String, dynamic>>.from(response['data']);
         } else {
-          print('⚠️ لم يتم العثور على بيانات المستخدمين في الاستجابة');
           _allUsers = [];
         }
         
-        print('👥 عدد المستخدمين: ${_allUsers.length}');
+      
       } else {
-        print('⚠️ استجابة فارغة من الخادم');
         _allUsers = [];
       }
     } catch (e) {
@@ -137,14 +126,12 @@ class MessageProvider extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> composeMessage() async {
     try {
-      print('📝 جاري تحضير نموذج الرسالة الجديدة');
+     
       final response = await _apiService.get('/dashboard/messages/compose');
-      print('📥 استجابة تحضير الرسالة: $response');
-      
+     
       if (response != null) {
         return response;
       }
-      return null;
     } catch (e) {
       print('❌ خطأ في تحضير الرسالة: $e');
       _error = e.toString();
@@ -158,12 +145,7 @@ class MessageProvider extends ChangeNotifier {
     required String body,
   }) async {
     try {
-      print('📧 بدء إرسال رسالة جديدة');
-      print('👤 المستلم: $recipientId');
-      print('📌 الموضوع: $subject');
-      print('📝 المحتوى: $body');
-      
-      _isLoading = true;
+          _isLoading = true;
       _error = null;
       notifyListeners();
 
@@ -172,10 +154,9 @@ class MessageProvider extends ChangeNotifier {
         'subject': subject,
         'body': body,
       });
-      print('📥 استجابة إرسال الرسالة: $response');
 
       if (response != null && response['message_details'] != null) {
-        print('✅ تم إرسال الرسالة بنجاح');
+       
         final messageData = response['message_details'];
         final newMessage = MessageModel.fromJson(messageData);
         _sentMessages.insert(0, newMessage);
@@ -184,20 +165,18 @@ class MessageProvider extends ChangeNotifier {
         // Show success message
         _error = null;
         return newMessage;
-      } else {
-        print('⚠️ لم يتم استلام تفاصيل الرسالة من الخادم');
-        print('⚠️ محتوى الاستجابة: $response');
+      }else {
         _error = 'فشل في إرسال الرسالة';
       }
       return null;
     } catch (e) {
-      print('❌ خطأ في إرسال الرسالة: $e');
+     
       _error = e.toString();
       return null;
     } finally {
       _isLoading = false;
       notifyListeners();
-      print('🏁 اكتملت عملية إرسال الرسالة');
+     
     }
   }
 
@@ -206,18 +185,14 @@ class MessageProvider extends ChangeNotifier {
     required String body,
   }) async {
     try {
-      print('📧 بدء الرد على رسالة');
-      print('📨 الرسالة الأصلية: $messageId');
-      print('📝 المحتوى: $body');
-      
+           
       _isLoading = true;
       _error = null;
       notifyListeners();
 
       final response = await _apiService.post('/dashboard/messages/$messageId/reply', {
         'body': body,
-      });
-      print('📥 استجابة الخادم: $response');
+      });     
 
       if (response != null && response['reply'] != null) {
         print('✅ تم الرد على الرسالة بنجاح');
@@ -226,17 +201,15 @@ class MessageProvider extends ChangeNotifier {
         notifyListeners();
         return replyMessage;
       } else {
-        print('⚠️ لم يتم استلام تفاصيل الرد من الخادم');
+    
       }
       return null;
     } catch (e) {
-      print('❌ خطأ في الرد على الرسالة: $e');
       _error = e.toString();
       return null;
     } finally {
       _isLoading = false;
       notifyListeners();
-      print('🏁 اكتملت عملية الرد على الرسالة');
     }
   }
 
@@ -244,14 +217,10 @@ class MessageProvider extends ChangeNotifier {
     try {
       print('📨 بدء وضع علامة القراءة على رسالة');
       print('📨 الرسالة: $messageId');
-      
       final response = await _apiService.post('/dashboard/messages/$messageId/mark-as-read', {});
-      print('📥 استجابة الخادم: $response');
-
       if (response != null) {
-        print('✅ تم وضع علامة القراءة على الرسالة بنجاح');
         final messageIndex = _messages.indexWhere((m) => m.id == messageId);
-        if (messageIndex != -1) {
+         if (messageIndex != -1) {
           final updatedMessage = MessageModel.fromJson({
             ..._messages[messageIndex].toJson(),
             'read': true,
@@ -263,7 +232,7 @@ class MessageProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('❌ خطأ في وضع علامة القراءة على الرسالة: $e');
+     
       _error = e.toString();
       return false;
     }
@@ -273,11 +242,8 @@ class MessageProvider extends ChangeNotifier {
     try {
       print('📨 بدء تغيير وضع الاهمية للرسالة');
       print('📨 الرسالة: $messageId');
-      
       final response = await _apiService.post('/dashboard/messages/$messageId/toggle-important', {});
-      print('📥 استجابة الخادم: $response');
-
-      if (response != null && response['important_status'] != null) {
+       if (response != null && response['important_status'] != null) {
         print('✅ تم تغيير وضع الاهمية للرسالة بنجاح');
         final messageIndex = _messages.indexWhere((m) => m.id == messageId);
         if (messageIndex != -1) {
@@ -292,7 +258,7 @@ class MessageProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('❌ خطأ في تغيير وضع الاهمية للرسالة: $e');
+     
       _error = e.toString();
       return false;
     }
@@ -302,11 +268,8 @@ class MessageProvider extends ChangeNotifier {
     try {
       print('📨 بدء حذف رسالة');
       print('📨 الرسالة: $messageId');
-      
       final response = await _apiService.delete('/dashboard/messages/$messageId');
-      print('📥 استجابة الخادم: $response');
-
-      if (response != null) {
+         if (response != null) {
         print('✅ تم حذف الرسالة بنجاح');
         _messages.removeWhere((m) => m.id == messageId);
         _sentMessages.removeWhere((m) => m.id == messageId);
@@ -315,7 +278,7 @@ class MessageProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('❌ خطأ في حذف الرسالة: $e');
+     
       _error = e.toString();
       return false;
     }
@@ -325,12 +288,8 @@ class MessageProvider extends ChangeNotifier {
     try {
       print('📨 بدء حذف رسائل متعددة');
       print('📨 الرسائل: $messageIds');
-      
-      final response = await _apiService.post('/dashboard/messages/delete-selected', {
-        'selected_messages': messageIds,
-      });
-      print('📥 استجابة الخادم: $response');
-
+           final response = await _apiService.post('/dashboard/messages/delete-selected', {
+        'selected_messages': messageIds,});
       if (response != null) {
         print('✅ تم حذف الرسائل بنجاح');
         _messages.removeWhere((m) => messageIds.contains(m.id));
@@ -340,7 +299,7 @@ class MessageProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('❌ خطأ في حذف الرسائل: $e');
+          
       _error = e.toString();
       return false;
     }
@@ -349,45 +308,29 @@ class MessageProvider extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     try {
       print('🔍 البحث عن المستخدمين: $query');
-      print('🌐 Making GET request to: /dashboard/users/search?query=$query');
-      
+           
       final response = await _apiService.get('/dashboard/users/search', queryParameters: {'query': query});
-      print('📥 Response: $response');
       
+     
       if (response != null && response['data'] != null) {
         return List<Map<String, dynamic>>.from(response['data']);
       } else if (response != null && response['users'] != null) {
         return List<Map<String, dynamic>>.from(response['users']);
       } else {
-        print('⚠️ No users found in response: $response');
         return [];
       }
     } catch (e) {
-      print('❌ Error searching users: $e');
+     
       _error = e.toString();
       return [];
     }
   }
 
   Future<bool> markMessageAsRead(int messageId) async {
-    try {
-      final response = await _apiService.post(
-        '/dashboard/messages/$messageId/mark-as-read',
-        {},
-      );
-
-      if (response.statusCode == 200) {
-        final messageIndex = _messages.indexWhere((m) => m.id == messageId);
-        if (messageIndex != -1) {
-          final updatedMessage = MessageModel.fromJson(response.data['data']);
-          _messages[messageIndex] = updatedMessage;
-          notifyListeners();
-        }
-        return true;
-      }
-      return false;
+      try {
+      await _apiService.post('/dashboard/messages/$messageId/mark-as-read', {});
+      return true;
     } catch (e) {
-      print('Error marking message as read: $e');
       return false;
     }
   }

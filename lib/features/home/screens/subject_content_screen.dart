@@ -93,11 +93,13 @@ class _SubjectContentScreenState extends State<SubjectContentScreen> {
               color: AppColors.greyColor,
             ),
           ),
-          Text(
-            widget.subjectName,
-            style: const TextStyle(
-              color: AppColors.greyColor,
-              fontWeight: FontWeight.bold,
+          Expanded(
+            child: Text(
+              widget.subjectName,
+              style: const TextStyle(
+                color: AppColors.greyColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -343,13 +345,13 @@ class _SubjectContentScreenState extends State<SubjectContentScreen> {
                     );
                   }
 
-                  return ListView(
-                    shrinkWrap: true,
+                  return Column(
                     children: [
                       for (var semester in semestersProvider.semesters)
                         _buildSemesterSection(semester.semesterName, semester.id),
                     ],
                   );
+
                 },
               ),
             ),

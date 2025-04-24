@@ -26,7 +26,6 @@ class MessageModel {
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
-    print(' تحويل JSON إلى MessageModel: $json');
     return MessageModel(
       id: json['id'] as int,
       conversationId: json['conversation_id'] as int,

@@ -1,177 +1,173 @@
-import 'package:flutter/material.dart';
-import '../../../core/models/user_model.dart';
-import '../../../core/services/api_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
+
+import 'package:alemedu_app/core/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:alemedu_app/core/models/user_model.dart';
+import 'package:alemedu_app/core/services/api_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
   final _storage = const FlutterSecureStorage();
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-    serverClientId: '629802140732-27a6f8bel525n2vdj6o375o5s1s9rrrk.apps.googleusercontent.com',
-  );
+  
   UserModel? _user;
-  bool _isLoading = false;
+  String? _token;
   String? _error;
+  bool _isLoading = false;
 
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
-  String? get error => _error;
+  String? get error => _error; // Added to the getter
 
-  void _clearError() {
-    _error = null;
-    notifyListeners();
+  
+  Future<void> loadStoredToken() async {
+  
+    
+    final token = await _storage.read(key: 'token');
+    _token = token;
+    if (_token != null) {
+      ApiService().addTokenToHeaders(_token!);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _handleRequest(
+      Future<Map<String, dynamic>?> Function() request) async {
+    try {
+      final response = await request();
+      return response;
+    } catch (e, stack) {
+      if (kDebugMode) {
+        print(e);
+        print(stack);
+      }
+
+      if (e is UnauthorizedException) {
+        final refreshedToken = await _refreshToken();
+        if (refreshedToken != null) {
+          _apiService.addTokenToHeaders(refreshedToken);
+          return await request();
+        }
+      }else{
+        rethrow;
+      }
+      rethrow;
+    }
+  }
+  
+    Future<String?> _refreshToken() async {
+    final response = await _apiService.post('/refresh', {'token': _token});
+    if (response != null &&
+        response['status'] == true &&
+        response['data'] != null) {
+      final data = response['data'];
+      final newToken = data['token'];
+      _token = newToken;
+      await _storage.write(key: 'token', value: newToken);
+      return newToken;
+    }
+    return null;
   }
 
   Future<bool> signInWithGoogle() async {
-    print('🔍 بدء عملية تسجيل الدخول عبر Google');
-    print('🔧 استخدام معرف العميل: ${_googleSignIn.serverClientId}');
-
-    _isLoading = true;
-    _clearError();
+    _error = null;
     notifyListeners();
 
+    _isLoading = true;
     try {
-      print('🔄 محاولة فتح نافذة تسجيل الدخول عبر Google...');
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
       if (googleUser == null) {
-        print('❌ تم إلغاء عملية تسجيل الدخول من قبل المستخدم');
         _error = 'تم إلغاء تسجيل الدخول عبر Google';
-        _isLoading = false;
         notifyListeners();
         return false;
       }
-      
-      print('✅ تم تسجيل الدخول بنجاح عبر Google');
-      print('👤 معلومات المستخدم:');
-      print('   - الاسم: ${googleUser.displayName}');
-      print('   - البريد الإلكتروني: ${googleUser.email}');
-      print('   - معرف المستخدم: ${googleUser.id}');
-      print('   - الصورة: ${googleUser.photoUrl ?? "غير متوفرة"}');
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
-      print('🔑 جاري الحصول على رموز المصادقة...');
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      print('🔐 تم الحصول على الرموز:');
-      print('   - idToken: ${googleAuth.idToken?.substring(0, 20)}... (مختصر)');
-      print('   - accessToken: ${googleAuth.accessToken?.substring(0, 20)}... (مختصر)');
-
+      String serverClientId="629802140732-27a6f8bel525n2vdj6o375o5s1s9rrrk.apps.googleusercontent.com";
       // إرسال البيانات إلى الخادم
-      print('📤 إرسال البيانات إلى الخادم على المسار: /login/google');
       // معالجة URL الصورة الشخصية لتجنب مشكلة التخزين المزدوج
       String? photoUrl = googleUser.photoUrl;
       if (photoUrl != null && photoUrl.startsWith('https://')) {
-        // إرسال علامة خاصة للإشارة إلى أن هذا URL خارجي ولا يجب إضافة مسار التخزين إليه
         photoUrl = "EXTERNAL_URL:" + photoUrl;
-        print('📷 تمت إضافة علامة للصورة الخارجية: $photoUrl');
       }
-      
-      final response = await _apiService.post('/login/google', {
-        'id_token': googleAuth.idToken,
-        'access_token': googleAuth.accessToken,
-        'email': googleUser.email,
-        'name': googleUser.displayName,
-        'photo': photoUrl,
-        'google_id': googleUser.id,  // إضافة معرف جوجل
-        'provider': 'google',        // تحديد المزود
-        'device_type': 'android',    // نوع الجهاز
-        'external_photo': true,      // علامة للإشارة إلى أن الصورة خارجية
-      });
-      print('📥 استجابة الخادم:');
-      print(response);
-
-
-
-      if (response != null && 
-          response['status'] == true && 
+      final Map<String, dynamic>? response = await _handleRequest(() async =>
+         await _apiService.post('/login/google', {
+          'id_token': googleAuth.idToken,
+            'access_token': googleAuth.accessToken,
+            'email': googleUser.email,
+            'name': googleUser.displayName,
+            'photo': photoUrl,
+            'google_id': googleUser.id, // إضافة معرف جوجل
+            'provider': 'google', // تحديد المزود
+            'device_type': 'android', // نوع الجهاز
+            'external_photo': true, // علامة للإشارة إلى أن الصورة خارجية,
+            'server_client_id': serverClientId
+          }));
+      if (response != null &&
+          response['status'] == true &&
           response['data'] != null) {
-        print('✅ استجابة الخادم ناجحة، حالة: ${response['status']}');
         final data = response['data'];
-        if (data['token'] != null && data['user'] != null) {
-          print('✅ تم العثور على التوكن وبيانات المستخدم');
-          print('🔑 التوكن: ${data['token'].substring(0, 20)}... (مختصر)');
-          print('👤 بيانات المستخدم: ${data['user']}');
-          
-          await _storage.write(key: 'token', value: data['token']);
-          print('💾 تم تخزين التوكن في التخزين الآمن');
-          
-          _user = UserModel.fromJson(data['user']);
-          print('🔄 تم إنشاء كائن المستخدم: ${_user?.name}');
-          
-          await setCurrentUser(_user!);
-          print('✅ تم حفظ بيانات المستخدم');
+        if (data['token'] != null) {
+          _token = data['token'];
+          _apiService.addTokenToHeaders(_token!);
+       }
 
-          _isLoading = false;
+        if (data['token'] != null && data['user'] != null) {
+
+          _token=data['token'];
+
+          await _storage.write(key: 'token', value: _token);
+          _user = UserModel.fromJson(data['user']);
+          await setCurrentUser(_user!);
           notifyListeners();
-          print('🎉 تم تسجيل الدخول بنجاح!');
           return true;
-        } else {
-          print('⚠️ لم يتم العثور على التوكن أو بيانات المستخدم في الاستجابة');
-          print('📄 محتوى البيانات: $data');
-        }
-      } else {
-        print('❌ فشل في استجابة الخادم');
-        print('📄 محتوى الاستجابة: $response');
+        } 
       }
 
       _error = response?['message'] ?? 'حدث خطأ أثناء تسجيل الدخول';
-      print('❌ تم تعيين رسالة الخطأ: $_error');
-      _isLoading = false;
       notifyListeners();
       return false;
     } catch (e, stack) {
-      print('❌❌❌ حدث خطأ غير متوقع:');
-      print('🔴 نوع الخطأ: ${e.runtimeType}');
-      print('🔴 رسالة الخطأ: $e');
-      print('🔴 تتبع الخطأ:');
-      print(stack);
-
       _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
-      _isLoading = false;
+       if (kDebugMode) {
+        print(e);
+        print(stack);
+      }
       notifyListeners();
+
       return false;
+    } finally {
+      _isLoading = false;
     }
   }
 
   Future<bool> login(String email, String password) async {
-    print('🔑 بدء عملية تسجيل الدخول العادي');
-    print('📧 البريد الإلكتروني: $email');
-    print('🔒 كلمة المرور: ${password.replaceAll(RegExp(r'.'), '*')}');
-
-    _isLoading = true;
-    _clearError();
+    _error = null;
     notifyListeners();
-
+    _isLoading = true;
     try {
-      print('🌐 إرسال طلب تسجيل الدخول إلى الخادم');
-      final response = await _apiService.post('/login', {
+      final Map<String, dynamic>? response = await _handleRequest(() async => await _apiService.post('/login', {
         'email': email,
         'password': password,
-      });
-
-      print('📥 استجابة الخادم: $response');
+      }));
 
       if (response != null && 
           response['status'] == true && 
           response['data'] != null) {
-        print('✅ استجابة الخادم ناجحة، حالة: ${response['status']}');
-        final data = response['data'];
+         final data = response['data'];
         if (data['token'] != null && data['user'] != null) {
-          print('✅ تم العثور على التوكن وبيانات المستخدم');
-          print('🔑 التوكن: ${data['token'].substring(0, 20)}... (مختصر)');
-          print('👤 بيانات المستخدم: ${data['user']}');
-
-          await _storage.write(key: 'token', value: data['token']);
-          print('💾 تم تخزين التوكن في التخزين الآمن');
-          
+          _token=data['token'];
+        _apiService.addTokenToHeaders(_token!);
+          await _storage.write(key: 'token', value: _token);
           _user = UserModel.fromJson(data['user']);
-          print('🔄 تم إنشاء كائن المستخدم: ${_user?.name}');
-          
+
           await setCurrentUser(_user!);
-          print('✅ تم حفظ بيانات المستخدم');
+
 
           notifyListeners();
           print('🎉 تم تسجيل الدخول بنجاح!');
@@ -186,70 +182,60 @@ class AuthProvider extends ChangeNotifier {
       }
 
       _error = response?['message'] ?? 'خطأ في البريد الإلكتروني أو كلمة المرور';
-      print('❌ تم تعيين رسالة الخطأ: $_error');
       notifyListeners();
       return false;
     } catch (e, stack) {
-      print('❌❌❌ حدث خطأ غير متوقع:');
-      print('🔴 نوع الخطأ: ${e.runtimeType}');
-      print('🔴 رسالة الخطأ: $e');
-      print('🔴 تتبع الخطأ:');
-      print(stack);
-
       _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+      if (kDebugMode) {
+        print(e);
+        print(stack);
+      }
       notifyListeners();
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners();
-      print('🏁 اكتملت عملية تسجيل الدخول');
     }
   }
 
   Future<bool> register(String name, String email, String password) async {
-
-    _isLoading = true;
-    _clearError();
+    _error = null;
     notifyListeners();
-
     try {
-
-      final response = await _apiService.post('/register', {
-        'name': name,
-        'email': email,
-        'password': password,
-        'password_confirmation': password,
-      });
-
-
-
-      if (response != null && 
-          response['status'] == true && 
+      final Map<String, dynamic>? response = await _handleRequest(() async =>
+          await _apiService.post('/register', {
+            'name': name,
+            'email': email,
+            'password': password,
+            'password_confirmation': password,
+          }));
+      if (response != null &&
+          response['status'] == true &&
           response['data'] != null) {
         final data = response['data'];
         if (data['token'] != null && data['user'] != null) {
+          _token = data['token'];
+          _apiService.addTokenToHeaders(_token!);
 
-          await _storage.write(key: 'token', value: data['token']);
+          await _storage.write(key: 'token', value: _token);
           _user = UserModel.fromJson(data['user']);
           await setCurrentUser(_user!);
-
           notifyListeners();
           return true;
         }
       }
-
-
       _error = response?['message'] ?? 'فشل التسجيل. يرجى المحاولة مرة أخرى.';
       notifyListeners();
       return false;
-    } catch (e) {
-
+    } catch (e, stack) {
       _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+      if (kDebugMode) {
+        print(e);
+        print(stack);
+      }
       notifyListeners();
       return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    }
+      finally {
     }
   }
 
@@ -258,16 +244,19 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> loadStoredUser() async {
+    await loadStoredToken();
     final storedUser = await _storage.read(key: 'user');
     if (storedUser != null) {
       _user = UserModel.fromJson(jsonDecode(storedUser));
-      notifyListeners();
+       notifyListeners();
     }
   }
 
   Future<void> logout() async {
     await _storage.deleteAll();
     _user = null;
+    _apiService.removeTokenFromHeaders();
+    _token = null;
     notifyListeners();
   }
 }

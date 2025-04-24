@@ -33,13 +33,13 @@ void main() async {
 
     timeago.setLocaleMessages('ar', TimeagoAr());
 
-    final apiService = ApiService();
+    final apiService = ApiService(); // Get the singleton instance
     await apiService.initialize();
 
     runApp(
       MultiProvider(
         providers: [
-          Provider<ApiService>.value(value: apiService),
+          Provider<ApiService>.value(value: apiService),// Provide the singleton instance
           ChangeNotifierProvider(
             create: (_) => AuthProvider(),
           ),
@@ -56,30 +56,27 @@ void main() async {
             create: (_) => ArticlesProvider(),
           ),
           ChangeNotifierProvider(
-            create: (context) {
-              final apiService = context.read<ApiService>();
-              final commentService = NewsCommentService(apiService);
-              return NewsProvider(apiService, commentService);
-            },
+            create: (context) => NewsProvider(
+                context.read<ApiService>(), // Use the singleton instance
+                NewsCommentService(context.read<ApiService>()) // Use the singleton instance
+            ),
           ),
           ChangeNotifierProxyProvider<NewsProvider, NewsCommentsProvider>(
             create: (context) => NewsCommentsProvider(
-              NewsCommentService(context.read<ApiService>())
+                NewsCommentService(context.read<ApiService>()) // Use the singleton instance
             ),
             update: (BuildContext context, NewsProvider newsProvider, NewsCommentsProvider? previous) {
               previous?.updateCommentService(newsProvider.commentService);
               return previous ?? NewsCommentsProvider(newsProvider.commentService);
             },
           ),
-          ChangeNotifierProvider(
-            create: (_) => ProfileProvider(),
-          ),
+          ChangeNotifierProvider(create: (_) => ProfileProvider()),
           ChangeNotifierProvider(
             create: (context) => MessageProvider(
-              context.read<ApiService>(),
+              context.read<ApiService>(), // Use the singleton instance
             ),
           ),
-          ChangeNotifierProvider(
+          ChangeNotifierProvider( // Use the singleton instance
             create: (context) => NotificationProvider(
               context.read<ApiService>(),
             ),

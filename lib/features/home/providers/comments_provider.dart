@@ -20,14 +20,12 @@ class CommentsProvider extends ChangeNotifier {
   }
 
   Future<void> loadComments(int articleId) async {
-    print('=== بدء تحميل التعليقات في Provider ===');
     _isLoading = true;
     _error = null;
     Future.microtask(() => notifyListeners());
 
     try {
       _comments = await _commentService.getComments(articleId);
-      print('تم تحميل ${_comments.length} تعليق');
       _isLoading = false;
       Future.microtask(() => notifyListeners());
     } catch (e) {
@@ -52,7 +50,6 @@ class CommentsProvider extends ChangeNotifier {
       _comments = [...comments, newComment];
       notifyListeners();
     } catch (e) {
-      print('خطأ في إضافة التعليق: $e');
       rethrow;
     }
   }
@@ -102,7 +99,6 @@ class CommentsProvider extends ChangeNotifier {
       _comments = updatedComments;
       notifyListeners();
     } catch (e) {
-      print('خطأ في إضافة التفاعل: $e');
       rethrow;
     }
   }
