@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import 'forget_password_screen.dart';
 import '../../../core/constants/colors.dart';
 import 'dart:math' as math;
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen();
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -25,7 +26,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.initState();
     _controller = AnimationController(
       duration: const Duration(seconds: 20),
-      vsync: this,
+      vsync: this
     )..repeat();
     _animation = CurvedAnimation(
       parent: _controller,
@@ -46,15 +47,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       try {
 
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        
-
-        final success = await authProvider.login(
-          _emailController.text.trim(),
+        await authProvider.login(
+          _emailController.text,
           _passwordController.text,
         );
-
-
-        
         if (authProvider.isAuthenticated) {
 
           if (!mounted) return;
@@ -87,32 +83,24 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
-      final success = await authProvider.signInWithGoogle();
-
-      
-      if (success) {
-        if (!mounted) return;
+      await authProvider.signInWithGoogle();
+      if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
-      } else {
-
+      
+    } catch (e) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
         if (!mounted) return;
         if (authProvider.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.error!),
+             SnackBar( content: Text(authProvider.error!),
               backgroundColor: AppColors.errorColor,
             ),
           );
         }
-      }
-    } catch (e) {
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في تسجيل الدخول عبر Google: ${e.toString()}'),
-          backgroundColor: AppColors.errorColor,
-        ),
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('خطأ في تسجيل الدخول عبر Google: ${e.toString()}'),
+              backgroundColor: AppColors.errorColor,),
       );
     }
   }
@@ -134,10 +122,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               top: size.height * (index * 0.3),
               child: RotationTransition(
                 turns: _animation,
-                child: CustomPaint(
-                  painter: CirclePainter(
+                child: CustomPaint( 
+                  painter: CirclePainter(                               
                     color: Colors.white.withOpacity(0.05),
-                  ),
+                  ),                  
                   size: Size(size.width + 200, size.width + 200),
                 ),
               ),
@@ -233,9 +221,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     _rememberMe = value ?? false;
                                   });
                                 },
-                                fillColor: MaterialStateProperty.resolveWith<Color>(
-                                  (Set<MaterialState> states) {
-                                    if (states.contains(MaterialState.selected)) {
+                                fillColor: WidgetStateProperty.resolveWith<Color>(
+                                  (Set<WidgetState> states) {
+                                    if (states.contains(WidgetState.selected)) {
                                       return AppColors.goldColor;
                                     }
                                     return Colors.white;
@@ -253,7 +241,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         const Spacer(),
                         TextButton(
                           onPressed: () {
-                            // TODO: تنفيذ استعادة كلمة المرور
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ForgetPasswordScreen(),
+                              ),
+                            );
                           },
                           child: const Text(
                             'نسيت كلمة المرور؟',
@@ -430,7 +423,7 @@ class CirclePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color
+      ..color = color.withAlpha(13) // change color opacity
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(

@@ -49,7 +49,7 @@ class SemestersProvider with ChangeNotifier {
       } else {
         _error = 'لا توجد فصول دراسية متاحة';
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = 'حدث خطأ: $e';
     } finally {
       _isLoading = false;

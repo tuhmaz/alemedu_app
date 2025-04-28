@@ -5,7 +5,7 @@ import '../providers/auth_provider.dart';
 import 'dart:math' as math;
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen();
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();

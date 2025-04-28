@@ -37,7 +37,7 @@ class ClassesProvider extends ChangeNotifier {
         _error = 'لا توجد صفوف متاحة';
         }
        
-    } on Exception catch (e) {
+    } on Exception {
       _error = 'حدث خطأ أثناء تحميل الصفوف';
     }
     finally{

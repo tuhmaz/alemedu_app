@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/news_comment_service.dart';
 import '../models/comment_model.dart';
-import '../models/reaction_model.dart';
 
 class NewsCommentsProvider extends ChangeNotifier {
   NewsCommentService _commentService;
-  Map<int, List<CommentModel>> _commentsMap = {};
-  Map<int, bool> _loadingMap = {};
-  Map<int, String?> _errorMap = {};
+  final Map<int, List<CommentModel>> _commentsMap = {};
+  final Map<int, bool> _loadingMap = {};
+  final Map<int, String?> _errorMap = {};
 
   NewsCommentsProvider(this._commentService);
 
@@ -18,9 +17,9 @@ class NewsCommentsProvider extends ChangeNotifier {
   void updateCommentService(NewsCommentService service) {
     _commentService = service;
     // إعادة تحميل التعليقات للأخبار المفتوحة حالياً
-    _commentsMap.keys.forEach((newsId) {
+    for (var newsId in _commentsMap.keys) {
       loadComments(newsId);
-    });
+    }
   }
 
   Future<void> loadComments(int newsId) async {
@@ -68,39 +67,38 @@ class NewsCommentsProvider extends ChangeNotifier {
         final comments = _commentsMap[newsId]!;
         final commentIndex = comments.indexWhere((c) => c.id == commentId);
         
-        if (commentIndex != -1) {
-          final comment = comments[commentIndex];
-          
-          // تحديث عدد التفاعلات
-          final currentCount = comment.getReactionCount(type);
-          final newReactionCounts = Map<String, int>.from(comment.reactionCounts);
-          
-          if (comment.hasUserReacted(type)) {
-            // إذا كان نفس النوع، نقوم بإزالة التفاعل
-            newReactionCounts[type] = currentCount - 1;
-            if (newReactionCounts[type] == 0) {
-              newReactionCounts.remove(type);
-            }
-            comments[commentIndex] = comment.copyWith(
-              reactionCounts: newReactionCounts,
-              userReactionType: null,
-            );
-          } else {
-            // إذا كان نوع مختلف، نقوم بإضافة التفاعل الجديد وإزالة القديم
-            if (comment.userReactionType != null) {
-              final oldCount = comment.getReactionCount(comment.userReactionType!);
-              newReactionCounts[comment.userReactionType!] = oldCount - 1;
-              if (newReactionCounts[comment.userReactionType!] == 0) {
-                newReactionCounts.remove(comment.userReactionType);
-              }
-            }
-            newReactionCounts[type] = currentCount + 1;
-            comments[commentIndex] = comment.copyWith(
-              reactionCounts: newReactionCounts,
-              userReactionType: type,
-            );
+         if (commentIndex != -1) {
+        final comment = comments[commentIndex];
+        await _commentService.addReaction(
+          commentId: commentId,
+          type: type,
+        );
+        final newReactionCounts = Map<String, int>.from(comment.reactionCounts);
+        if (comment.userReactionType == type) {
+          // If the same type, remove the reaction
+          newReactionCounts[type] = comment.getReactionCount(type) - 1;
+          if (newReactionCounts[type] == 0) {
+            newReactionCounts.remove(type);
           }
-          
+          comments[commentIndex] = comment.copyWith(
+            reactionCounts: newReactionCounts,
+            userReactionType: null,
+          );
+        } else {
+          // If different type, add the new reaction and remove the old one
+          if (comment.userReactionType != null) {
+            final oldCount = comment.getReactionCount(comment.userReactionType!);
+            newReactionCounts[comment.userReactionType!] = oldCount - 1;
+            if (newReactionCounts[comment.userReactionType!] == 0) {
+              newReactionCounts.remove(comment.userReactionType);
+            }
+          }
+          newReactionCounts[type] = comment.getReactionCount(type) + 1;
+          comments[commentIndex] = comment.copyWith(
+            reactionCounts: newReactionCounts,
+            userReactionType: type,
+          );
+        }
           _commentsMap[newsId] = comments;
           notifyListeners();
         }

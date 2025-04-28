@@ -76,7 +76,7 @@ class NewsCommentService {
     
     try {
       final response = await _apiService.post(
-        '/$_selectedDatabase/reactions',
+        '/reactions',
         {
           'comment_id': commentId,
           'type': type,

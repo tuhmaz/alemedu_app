@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../../core/models/news_model.dart';
 import '../../../core/constants/colors.dart';
 import 'package:extended_image/extended_image.dart';
@@ -12,22 +13,49 @@ class NewsDetailsScreen extends StatefulWidget {
   final NewsModel news;
 
   const NewsDetailsScreen({
-    Key? key,
+    super.key,
     required this.news,
-  }) : super(key: key);
+  });
 
   @override
   State<NewsDetailsScreen> createState() => _NewsDetailsScreenState();
 }
 
 class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
+  BannerAd? _bannerAd;
+  bool _isBannerAdReady = false;
+
   @override
   void initState() {
     super.initState();
-    // تحميل التعليقات عند فتح الصفحة
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NewsCommentsProvider>().loadComments(widget.news.id);
+      _loadBannerAd();
     });
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111',
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdReady = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+        },
+      ),
+    )..load();
   }
 
   String _formatDate(String dateStr) {
@@ -149,58 +177,71 @@ class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'التعليقات',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  if (_isBannerAdReady && _bannerAd != null)
+                    SizedBox(
+                      width: _bannerAd!.size.width.toDouble(),
+                      height: _bannerAd!.size.height.toDouble(),
+                      child: AdWidget(ad: _bannerAd!),
                     ),
-                  ),
                   const SizedBox(height: 16),
-                  CommentInput(
-                    onSubmit: (text) {
-                      if (text.isNotEmpty) {
-                        context.read<NewsCommentsProvider>().addComment(
-                              text,
-                              widget.news.id,
-                            );
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Consumer<NewsCommentsProvider>(
-                    builder: (context, provider, child) {
-                      if (provider.isLoading(widget.news.id)) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
-                      }
-
-                      final error = provider.getError(widget.news.id);
-                      if (error != null) {
-                        return Center(
-                          child: Text(
-                            error,
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        );
-                      }
-
-                      final comments = provider.getComments(widget.news.id);
-                      if (comments.isEmpty) {
-                        return const Center(
-                          child: Text('لا توجد تعليقات بعد'),
-                        );
-                      }
-
-                      return CommentList(
-                        comments: comments,
-                        onReaction: (commentId, type) {
-                          provider.addReaction(commentId, type, widget.news.id);
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'التعليقات',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      CommentInput(
+                        onSubmit: (text) {
+                          if (text.isNotEmpty) {
+                            context.read<NewsCommentsProvider>().addComment(
+                                  text,
+                                  widget.news.id,
+                                );
+                          }
                         },
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 16),
+                      Consumer<NewsCommentsProvider>(
+                        builder: (context, provider, child) {
+                          if (provider.isLoading(widget.news.id)) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          final error = provider.getError(widget.news.id);
+                          if (error != null) {
+                            return Center(
+                              child: Text(
+                                error,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            );
+                          }
+
+                          final comments = provider.getComments(widget.news.id);
+                          if (comments.isEmpty) {
+                            return const Center(
+                              child: Text('لا توجد تعليقات بعد'),
+                            );
+                          }
+
+                          return CommentList(
+                            comments: comments,
+                            onReaction: (commentId, type) {
+                              provider.addReaction(
+                                  commentId, type, widget.news.id);
+                            },
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

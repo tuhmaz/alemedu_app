@@ -60,7 +60,7 @@ class NotificationProvider extends ChangeNotifier {
 
         _error = 'لا توجد إشعارات';
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
 
 
       _error = 'فشل في تحميل الإشعارات: ${e.toString()}';

@@ -10,7 +10,6 @@ import 'package:alemedu_app/core/constants/colors.dart';
 import 'package:alemedu_app/features/home/providers/comments_provider.dart';
 import 'package:alemedu_app/features/auth/providers/auth_provider.dart';
 import 'package:alemedu_app/features/home/models/comment_model.dart';
-import 'package:alemedu_app/features/home/models/reaction_model.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class ArticleDetailsScreen extends StatefulWidget {
@@ -483,7 +482,7 @@ class _ArticleDetailsScreenState extends State<ArticleDetailsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // عرض التعليقات الحالية
-                        ...commentsProvider.comments.map((comment) => _buildCommentItem(comment)).toList(),
+                        ...commentsProvider.comments.map((comment) => _buildCommentItem(comment)),
                         const SizedBox(height: 16),
                         // نموذج إضافة تعليق جديد
                         Consumer<AuthProvider>(

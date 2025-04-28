@@ -4,9 +4,8 @@ class CommentInput extends StatefulWidget {
   final Function(String) onSubmit;
 
   const CommentInput({
-    Key? key,
     required this.onSubmit,
-  }) : super(key: key);
+  });
 
   @override
   State<CommentInput> createState() => _CommentInputState();

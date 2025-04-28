@@ -6,10 +6,9 @@ class CommentList extends StatelessWidget {
   final Function(int, String) onReaction;
 
   const CommentList({
-    Key? key,
     required this.comments,
     required this.onReaction,
-  }) : super(key: key);
+  });
 
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -36,8 +35,8 @@ class CommentList extends StatelessWidget {
                     radius: 20,
                     backgroundColor: Theme.of(context).primaryColor,
                     child: Text(
-                      (comment.user?.name?.isNotEmpty == true)
-                          ? comment.user!.name[0].toUpperCase()
+                      (comment.user.name.isNotEmpty == true)
+                          ? comment.user.name[0].toUpperCase()
                           : 'U',
                       style: const TextStyle(
                         color: Colors.white,
@@ -51,7 +50,7 @@ class CommentList extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          comment.user?.name ?? 'مستخدم',
+                          comment.user.name ?? 'مستخدم',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                           ),

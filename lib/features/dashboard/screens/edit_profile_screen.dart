@@ -228,7 +228,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       value: country.code,
                       child: Text(country.nameAr),
                     );
-                  }).toList(),
+                  }),
                 ],
                 onChanged: (value) {
                   setState(() => _selectedCountry = value);

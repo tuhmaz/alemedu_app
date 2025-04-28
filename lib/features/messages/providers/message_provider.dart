@@ -137,6 +137,7 @@ class MessageProvider extends ChangeNotifier {
       _error = e.toString();
       return null;
     }
+    return null;
   }
 
   Future<MessageModel?> sendMessage({

@@ -9,7 +9,7 @@ class NewsProvider with ChangeNotifier {
   final ApiService _apiService;
   final NewsCommentService _commentService;
   List<NewsModel> _news = [];
-  List<CategoryModel> _categories = [];
+  final List<CategoryModel> _categories = [];
   bool _isLoading = false;
   String _error = '';
   String _selectedDatabase = '';
@@ -17,8 +17,8 @@ class NewsProvider with ChangeNotifier {
   Map<String, IconData> _categoryIcons = {};
   Map<String, Color> _categoryColors = {};
   List<String>? _cachedUniqueCategories;
-  Map<String, List<NewsModel>> _cachedGroupedNews = {};
-  Map<String, int> _newsCountCache = {};
+  final Map<String, List<NewsModel>> _cachedGroupedNews = {};
+  final Map<String, int> _newsCountCache = {};
 
   NewsProvider(this._apiService, this._commentService) {
     _initializeCategoryData();
@@ -54,7 +54,7 @@ class NewsProvider with ChangeNotifier {
           uniqueCategories.add(news.category!.name);
         }
       }
-    return ['الكل', ...uniqueCategories.toList()];
+    return ['الكل', ...uniqueCategories];
   }
 
   // تحديد قاعدة البيانات

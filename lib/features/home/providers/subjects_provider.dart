@@ -65,7 +65,7 @@ class SubjectsProvider with ChangeNotifier {
       } else {
         _error = 'لا توجد مواد دراسية متاحة لهذا الصف';
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = 'حدث خطأ في الاتصال: $e';
     }
 

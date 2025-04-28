@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:alemedu_app/features/home/models/comment_model.dart';
-import 'package:alemedu_app/features/home/models/reaction_model.dart';
 import 'package:alemedu_app/features/home/services/comment_service.dart';
 
 class CommentsProvider extends ChangeNotifier {

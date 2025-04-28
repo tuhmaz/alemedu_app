@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -32,6 +32,8 @@ void main() async {
     await FirebaseConfig.initialize();
 
     timeago.setLocaleMessages('ar', TimeagoAr());
+
+    MobileAds.instance.initialize();
 
     final apiService = ApiService(); // Get the singleton instance
     await apiService.initialize();
@@ -111,7 +113,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp();
 
   @override
   Widget build(BuildContext context) {

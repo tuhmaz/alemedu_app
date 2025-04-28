@@ -70,7 +70,7 @@ class ArticlesProvider with ChangeNotifier {
         _articles = [];
         _error = 'لا توجد مقالات متاحة';
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = 'حدث خطأ: $e';
       _articles = [];
     }

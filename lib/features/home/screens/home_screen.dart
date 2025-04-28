@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../../core/constants/colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/classes_provider.dart';
@@ -21,6 +22,39 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
+  // TODO: Add _bannerAd
+  late BannerAd _bannerAd;
+
+  // TODO: Add _isBannerAdReady
+  bool _isBannerAdReady = false;
+
+  // TODO: Add _loadBannerAd()
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111',
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        // Called when an ad is successfully received.
+        onAdLoaded: (ad) {
+          setState(() {
+            _isBannerAdReady = true;
+          });
+        },
+        // Called when an ad request failed.
+        onAdFailedToLoad: (ad, err) {
+          setState(() {
+            _isBannerAdReady = false;
+          });
+          // Dispose the ad here to free resources.
+          ad.dispose();
+          // print('Failed to load a banner ad: ${err.message}');
+        },
+      ),
+    )..load();
+  }
+
   String _selectedDatabase = 'jo';
   final _random = math.Random();
 
@@ -112,49 +146,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return gradients[math.Random().nextInt(gradients.length)];
   }
 
-  Widget _buildBreadcrumb() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.breadcrumbBackground,
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.greyColor.withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.home,
-                  size: 16,
-                  color: AppColors.primaryColor,
-                ),
-                SizedBox(width: 4),
-                Text(
-                  'الرئيسية',
-                  style: TextStyle(
-                    color: AppColors.primaryColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+  Widget _bannerAdWidget() {
+      if (!_isBannerAdReady) {
+        return const SizedBox.shrink();
+      }
+    
+      return SizedBox(
+
+      height: 50,
+      child: _isBannerAdReady ? AdWidget(ad: _bannerAd) : const SizedBox.shrink(),
     );
+
   }
 
   // Get color for grade level
@@ -674,6 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadBannerAd();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
     });
@@ -685,6 +688,13 @@ class _HomeScreenState extends State<HomeScreen> {
     await newsProvider.fetchNews(refresh: true);
     Provider.of<ClassesProvider>(context, listen: false)
         .fetchClasses(_selectedDatabase);
+  }
+
+  @override
+  void dispose() {
+    _bannerAd.dispose();
+    super.dispose();
+    
   }
 
   @override
@@ -710,7 +720,7 @@ class _HomeScreenState extends State<HomeScreen> {
               value: _selectedDatabase,
               icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
               style: const TextStyle(color: Colors.white),
-              dropdownColor: AppColors.primaryColor,
+              dropdownColor: AppColors.primaryColor, 
               items: _countries.entries.map((entry) {
                 return DropdownMenuItem<String>(
                   value: entry.key,
@@ -726,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               }).toList(),
-              onChanged: (String? newValue) async {
+               onChanged: (String? newValue) async {
                 if (newValue != null) {
                   setState(() {
                     _selectedDatabase = newValue;
@@ -771,58 +781,53 @@ class _HomeScreenState extends State<HomeScreen> {
         textDirection: TextDirection.rtl,
         child: Column(
           children: [
-            _buildBreadcrumb(),
+            _bannerAdWidget(),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  await _loadInitialData();
-                },
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (classesProvider.isLoading)
-                        const Center(child: CircularProgressIndicator())
-                      else if (classesProvider.error.isNotEmpty)
-                        Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                classesProvider.error,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                              ElevatedButton(
-                                onPressed: () =>
-                                    classesProvider.fetchClasses(_selectedDatabase),
-                                child: const Text('إعادة المحاولة'),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 1,
-                            childAspectRatio: 3.5,
-                            mainAxisSpacing: 16,
-                          ),
-                          itemCount: classesProvider.classes.length,
-                          itemBuilder: (context, index) {
-                            final classItem = classesProvider.classes[index];
-                            return _buildGradeButton(classItem.gradeLevel, classItem.gradeName);
-                          },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (classesProvider.isLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if (classesProvider.error.isNotEmpty)
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              classesProvider.error,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  classesProvider.fetchClasses(_selectedDatabase),
+                              child: const Text('إعادة المحاولة'),
+                            ),
+                          ],
                         ),
-                      const SizedBox(height: 32),
-                      _buildNewsSection(),
-                    ],
-                  ),
+                      )
+                    else
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 1,
+                          childAspectRatio: 3.5,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: classesProvider.classes.length,
+                            itemBuilder: (context, index) {
+                              final classItem = classesProvider.classes[index];
+                              return _buildGradeButton(classItem.gradeLevel, classItem.gradeName);
+                            },
+                          ),
+                       const SizedBox(height: 32),
+                       _buildNewsSection(),
+                  ],
                 ),
+                  ),
               ),
-            ),
           ],
         ),
       ),

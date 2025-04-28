@@ -2,9 +2,7 @@ import 'dart:async';
 
 import 'package:alemedu_app/core/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:alemedu_app/core/models/user_model.dart';
 import 'package:alemedu_app/core/services/api_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
@@ -13,7 +11,7 @@ class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
   final _storage = const FlutterSecureStorage();
-  
+
   UserModel? _user;
   String? _token;
   String? _error;
@@ -24,10 +22,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
   String? get error => _error; // Added to the getter
 
-  
   Future<void> loadStoredToken() async {
-  
-    
     final token = await _storage.read(key: 'token');
     _token = token;
     if (_token != null) {
@@ -42,7 +37,7 @@ class AuthProvider extends ChangeNotifier {
       return response;
     } catch (e, stack) {
       if (kDebugMode) {
-        print(e);
+        print('Error: $e');
         print(stack);
       }
 
@@ -52,14 +47,14 @@ class AuthProvider extends ChangeNotifier {
           _apiService.addTokenToHeaders(refreshedToken);
           return await request();
         }
-      }else{
+      } else {
         rethrow;
       }
       rethrow;
     }
   }
-  
-    Future<String?> _refreshToken() async {
+
+  Future<String?> _refreshToken() async {
     final response = await _apiService.post('/refresh', {'token': _token});
     if (response != null &&
         response['status'] == true &&
@@ -88,16 +83,17 @@ class AuthProvider extends ChangeNotifier {
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
-      String serverClientId="629802140732-27a6f8bel525n2vdj6o375o5s1s9rrrk.apps.googleusercontent.com";
+      String serverClientId =
+          "629802140732-27a6f8bel525n2vdj6o375o5s1s9rrrk.apps.googleusercontent.com";
       // إرسال البيانات إلى الخادم
       // معالجة URL الصورة الشخصية لتجنب مشكلة التخزين المزدوج
       String? photoUrl = googleUser.photoUrl;
       if (photoUrl != null && photoUrl.startsWith('https://')) {
-        photoUrl = "EXTERNAL_URL:" + photoUrl;
+        photoUrl = "EXTERNAL_URL:$photoUrl";
       }
       final Map<String, dynamic>? response = await _handleRequest(() async =>
-         await _apiService.post('/login/google', {
-          'id_token': googleAuth.idToken,
+          await _apiService.post('/login/google', {
+            'id_token': googleAuth.idToken,
             'access_token': googleAuth.accessToken,
             'email': googleUser.email,
             'name': googleUser.displayName,
@@ -115,73 +111,20 @@ class AuthProvider extends ChangeNotifier {
         if (data['token'] != null) {
           _token = data['token'];
           _apiService.addTokenToHeaders(_token!);
-       }
+        }
 
         if (data['token'] != null && data['user'] != null) {
-
-          _token=data['token'];
+          _token = data['token'];
 
           await _storage.write(key: 'token', value: _token);
           _user = UserModel.fromJson(data['user']);
           await setCurrentUser(_user!);
           notifyListeners();
           return true;
-        } 
+        }
       }
 
       _error = response?['message'] ?? 'حدث خطأ أثناء تسجيل الدخول';
-      notifyListeners();
-      return false;
-    } catch (e, stack) {
-      _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
-       if (kDebugMode) {
-        print(e);
-        print(stack);
-      }
-      notifyListeners();
-
-      return false;
-    } finally {
-      _isLoading = false;
-    }
-  }
-
-  Future<bool> login(String email, String password) async {
-    _error = null;
-    notifyListeners();
-    _isLoading = true;
-    try {
-      final Map<String, dynamic>? response = await _handleRequest(() async => await _apiService.post('/login', {
-        'email': email,
-        'password': password,
-      }));
-
-      if (response != null && 
-          response['status'] == true && 
-          response['data'] != null) {
-         final data = response['data'];
-        if (data['token'] != null && data['user'] != null) {
-          _token=data['token'];
-        _apiService.addTokenToHeaders(_token!);
-          await _storage.write(key: 'token', value: _token);
-          _user = UserModel.fromJson(data['user']);
-
-          await setCurrentUser(_user!);
-
-
-          notifyListeners();
-          print('🎉 تم تسجيل الدخول بنجاح!');
-          return true;
-        } else {
-          print('⚠️ لم يتم العثور على التوكن أو بيانات المستخدم في الاستجابة');
-          print('📄 محتوى البيانات: $data');
-        }
-      } else {
-        print('❌ فشل في استجابة الخادم');
-        print('📄 محتوى الاستجابة: $response');
-      }
-
-      _error = response?['message'] ?? 'خطأ في البريد الإلكتروني أو كلمة المرور';
       notifyListeners();
       return false;
     } catch (e, stack) {
@@ -191,15 +134,99 @@ class AuthProvider extends ChangeNotifier {
         print(stack);
       }
       notifyListeners();
+
       return false;
     } finally {
       _isLoading = false;
+       notifyListeners();
+    }
+  }
+
+  Future<bool> login(String email, String password) async {
+    _error = null;
+    notifyListeners();
+    _isLoading = true;
+    try {
+      final Map<String, dynamic>? response = await _handleRequest(() async =>
+          await _apiService.post('/login', {
+            'email': email,
+            'password': password,
+          }));
+
+      if (response != null &&
+          response['status'] == true &&
+          response['data'] != null) {
+        final data = response['data'];
+        if (data['token'] != null && data['user'] != null) {
+          _token = data['token'];
+          _apiService.addTokenToHeaders(_token!);
+          await _storage.write(key: 'token', value: _token);
+          _user = UserModel.fromJson(data['user']);
+
+          await setCurrentUser(_user!);
+
+          notifyListeners();
+          return true;
+        } else {
+          if (kDebugMode) {
+            print('Token or user data not found in the response: $data');
+          }
+        }
+      } 
+     
+      _error = response?['message'] ?? 'خطأ في البريد الإلكتروني أو كلمة المرور';
+      notifyListeners();
+      return false;
+    } catch (e, stack) {
+      if (kDebugMode) {
+        print('Error: $e');
+        print(stack);
+      }
+      _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+      notifyListeners();
+      return false;
+    } finally {
+        _isLoading = false;
+    }
+  }
+
+  Future<bool> sendPasswordResetEmail(String email) async {
+    _error = null;
+    notifyListeners();
+
+      _isLoading = true;
+    try {
+      final Map<String, dynamic>? response = await _handleRequest(() async =>
+          await _apiService.post('/auth/forgot-password', {
+            'email': email,
+          }));
+      if (response != null &&
+          response['status'] == true &&
+          response['data'] != null) {
+          
+        notifyListeners();
+        return true;
+      }
+        _error = response?['message'] ?? 'فشل ارسال رسالة اعادة تعيين كلمة المرور';
+        notifyListeners();
+        return false;
+    } catch (e, stack) {
+      if (kDebugMode) {
+        print('Error: $e');
+        print(stack);
+      }
+      _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+      notifyListeners();
+      return false;
+    } finally {
+       _isLoading = false;
     }
   }
 
   Future<bool> register(String name, String email, String password) async {
     _error = null;
     notifyListeners();
+     _isLoading = true;
     try {
       final Map<String, dynamic>? response = await _handleRequest(() async =>
           await _apiService.post('/register', {
@@ -227,15 +254,16 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (e, stack) {
-      _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
       if (kDebugMode) {
-        print(e);
+        print('Error: $e');
         print(stack);
       }
+      _error = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+
       notifyListeners();
       return false;
-    }
-      finally {
+    } finally {
+       _isLoading = false;
     }
   }
 
@@ -248,7 +276,7 @@ class AuthProvider extends ChangeNotifier {
     final storedUser = await _storage.read(key: 'user');
     if (storedUser != null) {
       _user = UserModel.fromJson(jsonDecode(storedUser));
-       notifyListeners();
+      notifyListeners();
     }
   }
 
